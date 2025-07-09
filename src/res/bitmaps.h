@@ -7,6 +7,7 @@
 #include "config1_bmp.h"
 #include "free0_bmp.h"
 #include "free1_bmp.h"
+#include "icon_bmp.h"
 #include "install0_bmp.h"
 #include "install1_bmp.h"
 #include "readme0_bmp.h"
