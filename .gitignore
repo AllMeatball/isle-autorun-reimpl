@@ -1,2 +1,5 @@
-.cache/
 build/
+
+# Kate - Text Editor
+/.cache
+*.kate.swp
