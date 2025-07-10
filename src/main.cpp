@@ -26,6 +26,7 @@ struct Autorun_Streamer
 struct Autorun_Item
 {
     int x, y;
+    bool button;
     SDL_Texture *texture;
 };
 
@@ -35,6 +36,12 @@ SDL_Window *Autorun_window;
 SDL_Renderer *Autorun_renderer;
 
 dictionary *Autorun_ini;
+
+SDL_Texture *Autorun_backgroundTexture;
+
+
+void Autorun_LoadItems() {
+}
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 {
@@ -49,10 +56,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 
     const char *title = iniparser_getstring(Autorun_ini, "Instance:ProgramName", "");
 
-    SDL_CreateWindowAndRenderer(title, 640, 480, SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS, &Autorun_window, &Autorun_renderer);
+    SDL_CreateWindowAndRenderer(title, 640, 480, SDL_WINDOW_BORDERLESS, &Autorun_window, &Autorun_renderer);
 
     SDL_SetWindowIcon(Autorun_window, icon);
     SDL_DestroySurface(icon);
+
+    Autorun_LoadItems();
+    Autorun_backgroundTexture = Assets_BITMAP_TEXTURE(autorun_bmp);
 
     return SDL_APP_CONTINUE;
 }
@@ -60,6 +70,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 void SDL_AppQuit(void *appstate, SDL_AppResult result)
 {
     iniparser_freedict(Autorun_ini);
+
+    std::map<std::string, Autorun_Item>::iterator iter;
+    for (iter = Autorun_items.begin(); iter != Autorun_items.end(); iter++)
+    {
+        Autorun_Item item = iter->second;
+        SDL_DestroyTexture(item.texture);
+    }
 
     SDL_DestroyRenderer(Autorun_renderer);
     SDL_DestroyWindow(Autorun_window);
@@ -70,10 +87,21 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     if (!running)
         return SDL_APP_SUCCESS;
 
+    SDL_RenderTexture(Autorun_renderer, Autorun_backgroundTexture, NULL, NULL);
+
     std::map<std::string, Autorun_Item>::iterator iter;
     for (iter = Autorun_items.begin(); iter != Autorun_items.end(); iter++)
     {
-        printf("%s\n", iter->first.c_str());
+        Autorun_Item item = iter->second;
+        const SDL_FRect dst = {
+            .x = (float)item.x,
+            .y = (float)item.y,
+
+            .w = (float)item.texture->w,
+            .h = (float)item.texture->h,
+        };
+
+        SDL_RenderTexture(Autorun_renderer, item.texture, NULL, &dst);
     }
 
     SDL_RenderPresent(Autorun_renderer);
