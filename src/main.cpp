@@ -21,15 +21,11 @@ extern "C"
 
 bool running = true;
 
-struct Autorun_Streamer
-{
-    SDL_Texture *texture;
-};
-
 struct Autorun_Item
 {
     int x, y;
     SDL_Texture *texture;
+    SDL_Texture *hover_texture;
 };
 
 std::map<std::string, Autorun_Item> Autorun_items;
@@ -41,7 +37,7 @@ dictionary *Autorun_ini;
 
 SDL_Texture *Autorun_backgroundTexture;
 
-void Autorun_AddItem(std::string name, SDL_Texture *texture)
+void Autorun_AddItem(std::string name, SDL_Texture *texture, SDL_Texture *hover_texture)
 {
     Autorun_Item item;
     item.x = (float)iniparser_getint(
@@ -59,17 +55,36 @@ void Autorun_AddItem(std::string name, SDL_Texture *texture)
     );
 
     item.texture = texture;
+    item.hover_texture = hover_texture;
 
     Autorun_items[name] = item;
 }
 
 void Autorun_LoadItems()
 {
-    Autorun_AddItem("Run", Assets_BITMAP_TEXTURE(run0_bmp));
-    Autorun_AddItem("Extra1", Assets_BITMAP_TEXTURE(config0_bmp));
+    Autorun_AddItem(
+        "Run",
+        Assets_BITMAP_TEXTURE(run0_bmp),
+        Assets_BITMAP_TEXTURE(run1_bmp)
+    );
 
-    Autorun_AddItem("Uninstall", Assets_BITMAP_TEXTURE(uninstall0_bmp));
-    Autorun_AddItem("Cancel", Assets_BITMAP_TEXTURE(cancel0_bmp));
+    Autorun_AddItem(
+        "Extra1",
+        Assets_BITMAP_TEXTURE(config0_bmp),
+        Assets_BITMAP_TEXTURE(config1_bmp)
+    );
+
+    Autorun_AddItem(
+        "Uninstall",
+        Assets_BITMAP_TEXTURE(uninstall0_bmp),
+        Assets_BITMAP_TEXTURE(uninstall1_bmp)
+    );
+
+    Autorun_AddItem(
+        "Cancel",
+        Assets_BITMAP_TEXTURE(cancel0_bmp),
+        Assets_BITMAP_TEXTURE(cancel1_bmp)
+    );
 }
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
