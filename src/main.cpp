@@ -92,11 +92,11 @@ void Autorun_WriteVideoFrame(Autorun_Item *item)
     );
 
     SDL_SetSurfacePalette(tmp_surface, item->video.palette);
-
     SDL_LockTextureToSurface(item->texture, NULL, &targ_surface);
-        SDL_BlitSurface(tmp_surface, NULL, targ_surface, NULL);
-    SDL_UnlockTexture(item->texture);
 
+    SDL_BlitSurface(tmp_surface, NULL, targ_surface, NULL);
+
+    SDL_UnlockTexture(item->texture);
     SDL_DestroySurface(tmp_surface);
 }
 
@@ -291,7 +291,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             smk_info_all(item.video.smacker, &frame, &frame_count, 0, 0);
             // SDL_Log("%ld, %ld", frame, frame_count);
 
-            if (frame >= frame_count-1 && item.video.loops > 0)
+            if (frame >= frame_count - 1 && item.video.loops > 0)
             {
                 smk_first(item.video.smacker);
                 item.video.loops--;
