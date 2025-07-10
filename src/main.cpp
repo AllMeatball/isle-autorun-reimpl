@@ -48,7 +48,9 @@ struct Autorun_Item
         {
             smk smacker;
             SDL_Palette *palette;
-            bool frame_ready;
+
+            double timer;
+            double fps;
         } video;
     };
 };
@@ -66,7 +68,8 @@ void Autorun_WriteVideoFrame(Autorun_Item *item)
 {
     const unsigned char *palette = smk_get_palette(item->video.smacker);
 
-    for (int i = 0; i < 256; i++) {
+    for (int i = 0; i < 256; i++)
+    {
         SDL_Color color;
         color.r = palette[(i * 3) + 0];
         color.g = palette[(i * 3) + 1];
@@ -79,11 +82,17 @@ void Autorun_WriteVideoFrame(Autorun_Item *item)
     SDL_Surface *targ_surface = NULL;
 
     const unsigned char *frame = smk_get_video(item->video.smacker);
-    SDL_Surface *tmp_surface = SDL_CreateSurfaceFrom(item->texture->w, item->texture->h, SDL_PIXELFORMAT_INDEX8, (void*)frame, item->texture->w);
+    SDL_Surface *tmp_surface = SDL_CreateSurfaceFrom(
+        item->texture->w, item->texture->h,
+        SDL_PIXELFORMAT_INDEX8,
+        (void *)frame,
+        item->texture->w
+    );
+
     SDL_SetSurfacePalette(tmp_surface, item->video.palette);
 
     SDL_LockTextureToSurface(item->texture, NULL, &targ_surface);
-        SDL_BlitSurface(tmp_surface, NULL, targ_surface, NULL);
+    SDL_BlitSurface(tmp_surface, NULL, targ_surface, NULL);
     SDL_UnlockTexture(item->texture);
 
     SDL_DestroySurface(tmp_surface);
@@ -97,13 +106,19 @@ void Autorun_AddVideo(std::string name, void *data, size_t length)
 
     item.type = Autorun_ItemType_VIDEO;
 
-    item.video.smacker = smk_open_memory((const unsigned char*)data, length);
+    item.video.smacker = smk_open_memory((const unsigned char *)data, length);
 
+    double usf;
     unsigned long w, h;
     smk_info_video(item.video.smacker, &w, &h, NULL);
+    smk_info_all(item.video.smacker, NULL, NULL, NULL, &usf);
 
+    item.video.timer = 0.0;
+
+    item.video.fps = 1e6 / usf;
     item.texture = SDL_CreateTexture(Autorun_renderer, SDL_PIXELFORMAT_RGBX32, SDL_TEXTUREACCESS_STREAMING, w, h);
-    if (!item.texture) {
+    if (!item.texture)
+    {
         SDL_Log("Failed to create smacker texture: %s", SDL_GetError());
         smk_close(item.video.smacker);
         return;
@@ -113,6 +128,8 @@ void Autorun_AddVideo(std::string name, void *data, size_t length)
 
     smk_enable_video(item.video.smacker, 1);
     smk_first(item.video.smacker);
+
+    Autorun_WriteVideoFrame(&item);
 
     Autorun_items[name] = item;
 }
@@ -192,6 +209,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 
     SDL_CreateWindowAndRenderer(title, 640, 480, SDL_WINDOW_BORDERLESS, &Autorun_window, &Autorun_renderer);
 
+    SDL_SetRenderVSync(Autorun_renderer, SDL_RENDERER_VSYNC_ADAPTIVE);
+
     SDL_SetWindowIcon(Autorun_window, icon);
     SDL_DestroySurface(icon);
 
@@ -211,13 +230,13 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
         Autorun_Item item = iter->second;
         switch (item.type)
         {
-            case Autorun_ItemType_BUTTON:
-                SDL_DestroyTexture(item.button.hover_texture);
-                break;
-            case Autorun_ItemType_VIDEO:
-                SDL_DestroyPalette(item.video.palette);
-                smk_close(item.video.smacker);
-                break;
+        case Autorun_ItemType_BUTTON:
+            SDL_DestroyTexture(item.button.hover_texture);
+            break;
+        case Autorun_ItemType_VIDEO:
+            SDL_DestroyPalette(item.video.palette);
+            smk_close(item.video.smacker);
+            break;
         }
 
         SDL_DestroyTexture(item.texture);
@@ -227,8 +246,16 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
     SDL_DestroyWindow(Autorun_window);
 }
 
+double Autorun_lastTime = 0;
+
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
+    double current_time = SDL_GetTicksNS() / 1e9;
+    double delta = current_time - Autorun_lastTime;
+    Autorun_lastTime = current_time;
+
+    // SDL_Log("DT: %lf", delta);
+
     if (!running)
         return SDL_APP_SUCCESS;
 
@@ -257,7 +284,17 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             cur_texture = Utils_PointInRect(mouse_pos, dst) ? item.button.hover_texture : item.texture;
             break;
         case Autorun_ItemType_VIDEO:
-            Autorun_WriteVideoFrame(&item);
+            item.video.timer += delta;
+            // SDL_Log("TIMER: %lf", *item.video.timer);
+            if (item.video.timer > 1 / item.video.fps)
+            {
+                item.video.timer = 0.0;
+                Autorun_WriteVideoFrame(&item);
+                smk_next(item.video.smacker);
+            }
+
+            Autorun_items[iter->first] = item;
+
             break;
         }
 
@@ -265,6 +302,8 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     }
 
     SDL_RenderPresent(Autorun_renderer);
+
+    // SDL_Delay(40);
     return SDL_APP_CONTINUE;
 }
 
