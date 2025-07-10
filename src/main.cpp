@@ -11,6 +11,7 @@
 #include <string>
 
 #include "assets.h"
+#include "globals.h"
 #include "res/bitmaps.h"
 
 extern "C"
@@ -70,11 +71,15 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     SDL_CreateWindowAndRenderer(title, 640, 480, SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS, &Autorun_window, &Autorun_renderer);
 
     SDL_SetWindowIcon(Autorun_window, icon);
+    SDL_DestroySurface(icon);
+
     return SDL_APP_CONTINUE;
 }
 
 void SDL_AppQuit(void *appstate, SDL_AppResult result)
 {
+    iniparser_freedict(Autorun_ini);
+
     SDL_DestroyRenderer(Autorun_renderer);
     SDL_DestroyWindow(Autorun_window);
 }

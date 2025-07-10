@@ -1,6 +1,7 @@
 #include "assets.h"
+#include "globals.h"
 
-SDL_Surface *Res_LoadBitmapFromBuffer(const void *data, size_t size)
+SDL_Surface *Assets_LoadEmbedBitmap(const void *data, size_t size)
 {
     SDL_IOStream *stream = SDL_IOFromConstMem(data, size);
 
@@ -18,4 +19,22 @@ SDL_Surface *Res_LoadBitmapFromBuffer(const void *data, size_t size)
     }
 
     return surface;
+}
+
+SDL_Texture *Assets_LoadEmbedBitmapAsTexture(const void *data, size_t size)
+{
+    SDL_Surface *surface = Assets_LoadEmbedBitmap(data, size);
+    if (!surface)
+    {
+        return NULL;
+    }
+
+    SDL_Texture *texture = SDL_CreateTextureFromSurface(Autorun_renderer, surface);
+    if (!texture)
+    {
+        SDL_Log("Failed to load bitmap texture: %s", SDL_GetError());
+        return NULL;
+    }
+
+    return texture;
 }
