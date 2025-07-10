@@ -12,7 +12,7 @@
 
 #include "assets.h"
 #include "globals.h"
-#include "res/bitmaps.h"
+#include "res/media.h"
 #include "utils.h"
 
 extern "C"
