@@ -51,6 +51,8 @@ struct Autorun_Item
 
             double timer;
             double fps;
+
+            int loops;
         } video;
     };
 };
@@ -92,7 +94,7 @@ void Autorun_WriteVideoFrame(Autorun_Item *item)
     SDL_SetSurfacePalette(tmp_surface, item->video.palette);
 
     SDL_LockTextureToSurface(item->texture, NULL, &targ_surface);
-    SDL_BlitSurface(tmp_surface, NULL, targ_surface, NULL);
+        SDL_BlitSurface(tmp_surface, NULL, targ_surface, NULL);
     SDL_UnlockTexture(item->texture);
 
     SDL_DestroySurface(tmp_surface);
@@ -101,11 +103,12 @@ void Autorun_WriteVideoFrame(Autorun_Item *item)
 void Autorun_AddVideo(std::string name, void *data, size_t length)
 {
     Autorun_Item item;
-    item.x = (float)iniparser_getint(Autorun_ini, (name + ":XPos").c_str(), 0);
-    item.y = (float)iniparser_getint(Autorun_ini, (name + ":YPos").c_str(), 0);
-
     item.type = Autorun_ItemType_VIDEO;
 
+    item.x = iniparser_getint(Autorun_ini, (name + ":XPos").c_str(), 0);
+    item.y = iniparser_getint(Autorun_ini, (name + ":YPos").c_str(), 0);
+
+    item.video.loops = iniparser_getint(Autorun_ini, (name + ":Loops").c_str(), 0);
     item.video.smacker = smk_open_memory((const unsigned char *)data, length);
 
     double usf;
@@ -139,14 +142,14 @@ void Autorun_AddItem(std::string name, SDL_Texture *texture, SDL_Texture *hover_
     Autorun_Item item;
     item.type = Autorun_ItemType_BUTTON;
 
-    item.x = (float)iniparser_getint(
+    item.x = iniparser_getint(
         Autorun_ini,
         (name + ":PostXPos").c_str(),
 
         iniparser_getint(Autorun_ini, (name + ":XPos").c_str(), 0)
     );
 
-    item.y = (float)iniparser_getint(
+    item.y = iniparser_getint(
         Autorun_ini,
         (name + ":PostYPos").c_str(),
 
@@ -284,9 +287,19 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             cur_texture = Utils_PointInRect(mouse_pos, dst) ? item.button.hover_texture : item.texture;
             break;
         case Autorun_ItemType_VIDEO:
+            unsigned long frame, frame_count;
+            smk_info_all(item.video.smacker, &frame, &frame_count, 0, 0);
+            // SDL_Log("%ld, %ld", frame, frame_count);
+
+            if (frame >= frame_count-1 && item.video.loops > 0)
+            {
+                smk_first(item.video.smacker);
+                item.video.loops--;
+            }
+
             item.video.timer += delta;
-            // SDL_Log("TIMER: %lf", *item.video.timer);
-            if (item.video.timer > 1 / item.video.fps)
+            // SDL_Log("TIMER: %lf", item.video.timer);
+            if (item.video.timer > 1.0 / item.video.fps)
             {
                 item.video.timer = 0.0;
                 Autorun_WriteVideoFrame(&item);
