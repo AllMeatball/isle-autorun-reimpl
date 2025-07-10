@@ -1,3 +1,6 @@
+// Copyright (C) 2025 AllMeatball
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #include "assets.h"
 #include "globals.h"
 

@@ -1,3 +1,6 @@
+// Copyright (C) 2025 AllMeatball
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #include <stdio.h>
 
 #define SDL_MAIN_USE_CALLBACKS
