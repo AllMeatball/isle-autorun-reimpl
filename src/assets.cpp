@@ -36,8 +36,10 @@ SDL_Texture *Assets_LoadEmbedBitmapAsTexture(const void *data, size_t size)
     if (!texture)
     {
         SDL_Log("Failed to load bitmap texture: %s", SDL_GetError());
+        SDL_DestroySurface(surface);
         return NULL;
     }
 
+    SDL_DestroySurface(surface);
     return texture;
 }

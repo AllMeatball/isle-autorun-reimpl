@@ -1,3 +1,6 @@
+// Copyright (C) 2025 AllMeatball
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
 #ifndef _UTILS_H
 #define _UTILS_H
 
