@@ -10,6 +10,7 @@
 #include <map>
 #include <string>
 
+#include "utils.h"
 #include "assets.h"
 #include "globals.h"
 #include "res/bitmaps.h"
@@ -145,7 +146,11 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             .h = (float)item.texture->h,
         };
 
-        SDL_RenderTexture(Autorun_renderer, item.texture, NULL, &dst);
+        Utils_Vec2 mouse_pos;
+        SDL_GetMouseState(&mouse_pos.x, &mouse_pos.y);
+
+        SDL_Texture *cur_texture = Utils_PointInRect(mouse_pos, dst) ? item.hover_texture : item.texture;
+        SDL_RenderTexture(Autorun_renderer, cur_texture, NULL, &dst);
     }
 
     SDL_RenderPresent(Autorun_renderer);
