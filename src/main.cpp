@@ -17,8 +17,10 @@
 
 extern "C"
 {
-#include "iniparser.h"
+#include <iniparser.h>
 }
+
+#include <smacker.h>
 
 bool running = true;
 
@@ -41,6 +43,13 @@ struct Autorun_Item
         {
             SDL_Texture *hover_texture;
         } button;
+
+        struct
+        {
+            smk smacker;
+            SDL_Palette *palette;
+            bool frame_ready;
+        } video;
     };
 };
 
@@ -52,6 +61,61 @@ SDL_Renderer *Autorun_renderer;
 dictionary *Autorun_ini;
 
 SDL_Texture *Autorun_backgroundTexture;
+
+void Autorun_WriteVideoFrame(Autorun_Item *item)
+{
+    const unsigned char *palette = smk_get_palette(item->video.smacker);
+
+    for (int i = 0; i < 256; i++) {
+        SDL_Color color;
+        color.r = palette[(i * 3) + 0];
+        color.g = palette[(i * 3) + 1];
+        color.b = palette[(i * 3) + 2];
+        color.a = 255;
+
+        SDL_SetPaletteColors(item->video.palette, &color, i, 1);
+    }
+
+    SDL_Surface *targ_surface = NULL;
+
+    const unsigned char *frame = smk_get_video(item->video.smacker);
+    SDL_Surface *tmp_surface = SDL_CreateSurfaceFrom(item->texture->w, item->texture->h, SDL_PIXELFORMAT_INDEX8, (void*)frame, item->texture->w);
+    SDL_SetSurfacePalette(tmp_surface, item->video.palette);
+
+    SDL_LockTextureToSurface(item->texture, NULL, &targ_surface);
+        SDL_BlitSurface(tmp_surface, NULL, targ_surface, NULL);
+    SDL_UnlockTexture(item->texture);
+
+    SDL_DestroySurface(tmp_surface);
+}
+
+void Autorun_AddVideo(std::string name, void *data, size_t length)
+{
+    Autorun_Item item;
+    item.x = (float)iniparser_getint(Autorun_ini, (name + ":XPos").c_str(), 0);
+    item.y = (float)iniparser_getint(Autorun_ini, (name + ":YPos").c_str(), 0);
+
+    item.type = Autorun_ItemType_VIDEO;
+
+    item.video.smacker = smk_open_memory((const unsigned char*)data, length);
+
+    unsigned long w, h;
+    smk_info_video(item.video.smacker, &w, &h, NULL);
+
+    item.texture = SDL_CreateTexture(Autorun_renderer, SDL_PIXELFORMAT_RGBX32, SDL_TEXTUREACCESS_STREAMING, w, h);
+    if (!item.texture) {
+        SDL_Log("Failed to create smacker texture: %s", SDL_GetError());
+        smk_close(item.video.smacker);
+        return;
+    }
+
+    item.video.palette = SDL_CreatePalette(256);
+
+    smk_enable_video(item.video.smacker, 1);
+    smk_first(item.video.smacker);
+
+    Autorun_items[name] = item;
+}
 
 void Autorun_AddItem(std::string name, SDL_Texture *texture, SDL_Texture *hover_texture)
 {
@@ -80,6 +144,12 @@ void Autorun_AddItem(std::string name, SDL_Texture *texture, SDL_Texture *hover_
 
 void Autorun_LoadItems()
 {
+    Autorun_AddVideo(
+        "Animate",
+        installs_smk,
+        installs_smk_len
+    );
+
     Autorun_AddItem(
         "Run",
         Assets_BITMAP_TEXTURE(run0_bmp),
@@ -107,6 +177,8 @@ void Autorun_LoadItems()
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 {
+    SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO);
+
     SDL_Surface *icon = Assets_LOAD_BITMAP(icon_bmp);
 
     Autorun_ini = iniparser_load("autorun.ini");
@@ -137,6 +209,17 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
     for (iter = Autorun_items.begin(); iter != Autorun_items.end(); iter++)
     {
         Autorun_Item item = iter->second;
+        switch (item.type)
+        {
+            case Autorun_ItemType_BUTTON:
+                SDL_DestroyTexture(item.button.hover_texture);
+                break;
+            case Autorun_ItemType_VIDEO:
+                SDL_DestroyPalette(item.video.palette);
+                smk_close(item.video.smacker);
+                break;
+        }
+
         SDL_DestroyTexture(item.texture);
     }
 
@@ -161,8 +244,8 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             .x = (float)item.x,
             .y = (float)item.y,
 
-            .w = (float)item.texture->w,
-            .h = (float)item.texture->h,
+            .w = (float)cur_texture->w,
+            .h = (float)cur_texture->h,
         };
 
         switch (item.type)
@@ -174,6 +257,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             cur_texture = Utils_PointInRect(mouse_pos, dst) ? item.button.hover_texture : item.texture;
             break;
         case Autorun_ItemType_VIDEO:
+            Autorun_WriteVideoFrame(&item);
             break;
         }
 
