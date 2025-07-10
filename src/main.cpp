@@ -10,10 +10,10 @@
 #include <map>
 #include <string>
 
-#include "utils.h"
 #include "assets.h"
 #include "globals.h"
 #include "res/bitmaps.h"
+#include "utils.h"
 
 extern "C"
 {
@@ -22,11 +22,26 @@ extern "C"
 
 bool running = true;
 
+enum Autorun_ItemType
+{
+    Autorun_ItemType_BUTTON,
+    Autorun_ItemType_VIDEO,
+};
+
 struct Autorun_Item
 {
+    enum Autorun_ItemType type;
+
     int x, y;
     SDL_Texture *texture;
-    SDL_Texture *hover_texture;
+
+    union
+    {
+        struct
+        {
+            SDL_Texture *hover_texture;
+        } button;
+    };
 };
 
 std::map<std::string, Autorun_Item> Autorun_items;
@@ -41,6 +56,8 @@ SDL_Texture *Autorun_backgroundTexture;
 void Autorun_AddItem(std::string name, SDL_Texture *texture, SDL_Texture *hover_texture)
 {
     Autorun_Item item;
+    item.type = Autorun_ItemType_BUTTON;
+
     item.x = (float)iniparser_getint(
         Autorun_ini,
         (name + ":PostXPos").c_str(),
@@ -56,7 +73,7 @@ void Autorun_AddItem(std::string name, SDL_Texture *texture, SDL_Texture *hover_
     );
 
     item.texture = texture;
-    item.hover_texture = hover_texture;
+    item.button.hover_texture = hover_texture;
 
     Autorun_items[name] = item;
 }
@@ -138,6 +155,8 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     for (iter = Autorun_items.begin(); iter != Autorun_items.end(); iter++)
     {
         Autorun_Item item = iter->second;
+        SDL_Texture *cur_texture = item.texture;
+
         const SDL_FRect dst = {
             .x = (float)item.x,
             .y = (float)item.y,
@@ -146,10 +165,18 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             .h = (float)item.texture->h,
         };
 
-        Utils_Vec2 mouse_pos;
-        SDL_GetMouseState(&mouse_pos.x, &mouse_pos.y);
+        switch (item.type)
+        {
+        case Autorun_ItemType_BUTTON:
+            Utils_Vec2 mouse_pos;
+            SDL_GetMouseState(&mouse_pos.x, &mouse_pos.y);
 
-        SDL_Texture *cur_texture = Utils_PointInRect(mouse_pos, dst) ? item.hover_texture : item.texture;
+            cur_texture = Utils_PointInRect(mouse_pos, dst) ? item.button.hover_texture : item.texture;
+            break;
+        case Autorun_ItemType_VIDEO:
+            break;
+        }
+
         SDL_RenderTexture(Autorun_renderer, cur_texture, NULL, &dst);
     }
 
