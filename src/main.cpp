@@ -1,6 +1,3 @@
-// bits of mpeg SDL stuff by PhobosLabs
-// (https://github.com/phoboslab/pl_mpeg/blob/master/pl_mpeg_player_sdl.c)
-
 #include <stdio.h>
 
 #define SDL_MAIN_USE_CALLBACKS
@@ -17,7 +14,6 @@
 extern "C"
 {
 #include "iniparser.h"
-#include "pl_mpeg.h"
 }
 
 bool running = true;
@@ -39,21 +35,6 @@ SDL_Window *Autorun_window;
 SDL_Renderer *Autorun_renderer;
 
 dictionary *Autorun_ini;
-
-void app_on_video(plm_t *mpeg, plm_frame_t *frame, void *user)
-{
-    Autorun_Streamer *self = (Autorun_Streamer *)user;
-
-    SDL_UpdateYUVTexture(
-        self->texture,
-        NULL,
-        frame->y.data, frame->y.width,
-        frame->cb.data, frame->cb.width,
-        frame->cr.data, frame->cr.width
-    );
-}
-
-void app_on_audio(plm_t *mpeg, plm_samples_t *samples, void *user) {}
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 {
@@ -88,6 +69,12 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 {
     if (!running)
         return SDL_APP_SUCCESS;
+
+    std::map<std::string, Autorun_Item>::iterator iter;
+    for (iter = Autorun_items.begin(); iter != Autorun_items.end(); iter++)
+    {
+        printf("%s\n", iter->first.c_str());
+    }
 
     SDL_RenderPresent(Autorun_renderer);
     return SDL_APP_CONTINUE;
