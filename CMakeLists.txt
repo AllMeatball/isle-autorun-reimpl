@@ -10,6 +10,7 @@ add_subdirectory("thirdparty/iniparser")
 find_package(SDL3 CONFIG REQUIRED)
 
 add_executable(autorun
+    src/assets.cpp
     src/main.cpp
 )
 
