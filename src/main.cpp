@@ -26,7 +26,6 @@ struct Autorun_Streamer
 struct Autorun_Item
 {
     int x, y;
-    bool button;
     SDL_Texture *texture;
 };
 
@@ -39,8 +38,35 @@ dictionary *Autorun_ini;
 
 SDL_Texture *Autorun_backgroundTexture;
 
+void Autorun_AddItem(std::string name, SDL_Texture *texture)
+{
+    Autorun_Item item;
+    item.x = (float)iniparser_getint(
+        Autorun_ini,
+        (name + ":PostXPos").c_str(),
 
-void Autorun_LoadItems() {
+        iniparser_getint(Autorun_ini, (name + ":XPos").c_str(), 0)
+    );
+
+    item.y = (float)iniparser_getint(
+        Autorun_ini,
+        (name + ":PostYPos").c_str(),
+
+        iniparser_getint(Autorun_ini, (name + ":YPos").c_str(), 0)
+    );
+
+    item.texture = texture;
+
+    Autorun_items[name] = item;
+}
+
+void Autorun_LoadItems()
+{
+    Autorun_AddItem("Run", Assets_BITMAP_TEXTURE(run0_bmp));
+    Autorun_AddItem("Extra1", Assets_BITMAP_TEXTURE(config0_bmp));
+
+    Autorun_AddItem("Uninstall", Assets_BITMAP_TEXTURE(uninstall0_bmp));
+    Autorun_AddItem("Cancel", Assets_BITMAP_TEXTURE(cancel0_bmp));
 }
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
