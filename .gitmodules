@@ -1,3 +1,6 @@
 [submodule "thirdparty/iniparser"]
 	path = thirdparty/iniparser
 	url = https://gitlab.com/iniparser/iniparser.git
+[submodule "thirdparty/libsmacker"]
+	path = thirdparty/libsmacker
+	url = https://github.com/foxtacles/libsmacker.git
