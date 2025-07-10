@@ -5,7 +5,8 @@
 #define _GLOBALS_H
 #include <SDL3/SDL.h>
 
-extern "C" {
+extern "C"
+{
 #include <iniparser.h>
 }
 
