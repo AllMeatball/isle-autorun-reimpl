@@ -1,6 +1,7 @@
 // Copyright (C) 2025 AllMeatball
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+#include <assert.h>
 #include <stdio.h>
 
 #define SDL_MAIN_USE_CALLBACKS
@@ -9,6 +10,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include "assets.h"
 #include "globals.h"
@@ -30,9 +32,14 @@ enum Autorun_ItemType
     Autorun_ItemType_VIDEO,
 };
 
-struct Autorun_Item
+typedef struct Autorun_Item_STRUCT Autorun_Item;
+
+typedef void (*Autorun_ButtonAction)(Autorun_Item);
+
+struct Autorun_Item_STRUCT
 {
     enum Autorun_ItemType type;
+    std::string name;
 
     int x, y;
     SDL_Texture *texture;
@@ -41,6 +48,9 @@ struct Autorun_Item
     {
         struct
         {
+            bool is_hovering;
+            Autorun_ButtonAction action;
+
             SDL_Texture *hover_texture;
         } button;
 
@@ -59,6 +69,7 @@ struct Autorun_Item
 
 std::map<std::string, Autorun_Item> Autorun_items;
 
+const char *Autorun_title = "";
 SDL_Window *Autorun_window;
 SDL_Renderer *Autorun_renderer;
 SDL_AudioStream *Autorun_audioStream;
@@ -104,6 +115,7 @@ void Autorun_AddVideo(std::string name, void *data, size_t length)
 {
     Autorun_Item item;
     item.type = Autorun_ItemType_VIDEO;
+    item.name = name;
 
     item.x = iniparser_getint(Autorun_ini, (name + ":XPos").c_str(), 0);
     item.y = iniparser_getint(Autorun_ini, (name + ":YPos").c_str(), 0);
@@ -138,10 +150,11 @@ void Autorun_AddVideo(std::string name, void *data, size_t length)
     Autorun_items[name] = item;
 }
 
-void Autorun_AddItem(std::string name, SDL_Texture *texture, SDL_Texture *hover_texture)
+void Autorun_AddButton(std::string name, SDL_Texture *texture, SDL_Texture *hover_texture, Autorun_ButtonAction action)
 {
     Autorun_Item item;
     item.type = Autorun_ItemType_BUTTON;
+    item.name = name;
 
     item.x = iniparser_getint(
         Autorun_ini,
@@ -158,6 +171,8 @@ void Autorun_AddItem(std::string name, SDL_Texture *texture, SDL_Texture *hover_
     );
 
     item.texture = texture;
+    item.button.is_hovering = false;
+    item.button.action = action;
     item.button.hover_texture = hover_texture;
 
     Autorun_items[name] = item;
@@ -171,28 +186,60 @@ void Autorun_LoadItems()
         installs_smk_len
     );
 
-    Autorun_AddItem(
+    Autorun_AddButton(
         "Run",
         Assets_BITMAP_TEXTURE(run0_bmp),
-        Assets_BITMAP_TEXTURE(run1_bmp)
+        Assets_BITMAP_TEXTURE(run1_bmp),
+        [](Autorun_Item self)
+        {
+            SDL_ShowSimpleMessageBox(
+                SDL_MESSAGEBOX_INFORMATION,
+                Autorun_title,
+                "TODO: make this open LEGO Island",
+                Autorun_window
+            );
+        }
     );
 
-    Autorun_AddItem(
+    Autorun_AddButton(
         "Extra1",
         Assets_BITMAP_TEXTURE(config0_bmp),
-        Assets_BITMAP_TEXTURE(config1_bmp)
+        Assets_BITMAP_TEXTURE(config1_bmp),
+        [](Autorun_Item self)
+        {
+            SDL_ShowSimpleMessageBox(
+                SDL_MESSAGEBOX_INFORMATION,
+                Autorun_title,
+                "TODO: make this open the config app",
+                Autorun_window
+            );
+        }
     );
 
-    Autorun_AddItem(
+
+    Autorun_AddButton(
         "Uninstall",
         Assets_BITMAP_TEXTURE(uninstall0_bmp),
-        Assets_BITMAP_TEXTURE(uninstall1_bmp)
+        Assets_BITMAP_TEXTURE(uninstall1_bmp),
+        [](Autorun_Item self)
+        {
+            SDL_ShowSimpleMessageBox(
+                SDL_MESSAGEBOX_INFORMATION,
+                Autorun_title,
+                "You can delete the files manually.\nNo uninstaller program needed.",
+                Autorun_window
+            );
+        }
     );
 
-    Autorun_AddItem(
+    Autorun_AddButton(
         "Cancel",
         Assets_BITMAP_TEXTURE(cancel0_bmp),
-        Assets_BITMAP_TEXTURE(cancel1_bmp)
+        Assets_BITMAP_TEXTURE(cancel1_bmp),
+        [](Autorun_Item self)
+        {
+            running = false;
+        }
     );
 }
 
@@ -209,9 +256,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
         return SDL_APP_FAILURE;
     }
 
-    const char *title = iniparser_getstring(Autorun_ini, "Instance:ProgramName", "");
+    Autorun_title = iniparser_getstring(Autorun_ini, "Instance:ProgramName", "");
 
-    SDL_CreateWindowAndRenderer(title, 640, 480, SDL_WINDOW_BORDERLESS, &Autorun_window, &Autorun_renderer);
+    SDL_CreateWindowAndRenderer(Autorun_title, 640, 480, SDL_WINDOW_BORDERLESS, &Autorun_window, &Autorun_renderer);
 
     SDL_SetRenderVSync(Autorun_renderer, SDL_RENDERER_VSYNC_ADAPTIVE);
 
@@ -300,9 +347,16 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         {
         case Autorun_ItemType_BUTTON:
             Utils_Vec2 mouse_pos;
+            bool hovering;
+
             SDL_GetMouseState(&mouse_pos.x, &mouse_pos.y);
 
-            cur_texture = Utils_PointInRect(mouse_pos, dst) ? item.button.hover_texture : item.texture;
+            hovering = Utils_PointInRect(mouse_pos, dst);
+            item.button.is_hovering = hovering;
+
+            Autorun_items[iter->first] = item;
+
+            cur_texture = hovering ? item.button.hover_texture : item.texture;
             break;
         case Autorun_ItemType_VIDEO:
             unsigned long frame, frame_count;
@@ -346,8 +400,27 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 {
     if (event->type == SDL_EVENT_QUIT)
-    {
         running = false;
+
+    if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN)
+    {
+        if (event->button.button != SDL_BUTTON_LEFT)
+            return SDL_APP_CONTINUE;
+
+        std::map<std::string, Autorun_Item>::iterator iter;
+        for (iter = Autorun_items.begin(); iter != Autorun_items.end(); iter++)
+        {
+            Autorun_Item item = iter->second;
+
+            if (item.type != Autorun_ItemType_BUTTON)
+                continue;
+
+            if (!item.button.is_hovering)
+                continue;
+
+            item.button.action(item);
+            break;
+        }
     }
 
     return SDL_APP_CONTINUE;
