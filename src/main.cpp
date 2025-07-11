@@ -63,6 +63,7 @@ struct Autorun_Item_STRUCT
             double fps;
 
             int loops;
+            bool paused;
         } video;
     };
 };
@@ -129,6 +130,7 @@ void Autorun_AddVideo(std::string name, void *data, size_t length)
     smk_info_all(item.video.smacker, NULL, NULL, NULL, &usf);
 
     item.video.timer = 0.0;
+    item.video.paused = false;
 
     item.video.fps = 1e6 / usf;
     item.texture = SDL_CreateTexture(Autorun_renderer, SDL_PIXELFORMAT_RGBX32, SDL_TEXTUREACCESS_STREAMING, w, h);
@@ -216,7 +218,6 @@ void Autorun_LoadItems()
         }
     );
 
-
     Autorun_AddButton(
         "Uninstall",
         Assets_BITMAP_TEXTURE(uninstall0_bmp),
@@ -226,7 +227,7 @@ void Autorun_LoadItems()
             SDL_ShowSimpleMessageBox(
                 SDL_MESSAGEBOX_INFORMATION,
                 Autorun_title,
-                "You can delete the files manually.\nNo uninstaller program needed.",
+                "You can delete the files manually.\nNo uninstaller is program needed.",
                 Autorun_window
             );
         }
@@ -360,6 +361,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             break;
         case Autorun_ItemType_VIDEO:
             unsigned long frame, frame_count;
+
+            if (item.video.paused)
+                break;
+
             smk_info_all(item.video.smacker, &frame, &frame_count, 0, 0);
             // SDL_Log("%ld, %ld", frame, frame_count);
 
@@ -367,6 +372,11 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             {
                 smk_first(item.video.smacker);
                 item.video.loops--;
+            }
+
+            if (item.video.loops < 1) {
+                item.video.paused = true;
+                break;
             }
 
             item.video.timer += delta;
@@ -419,6 +429,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
                 continue;
 
             item.button.action(item);
+            Autorun_items["Animate"].video.paused = true;
             break;
         }
     }
