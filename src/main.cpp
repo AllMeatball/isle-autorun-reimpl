@@ -61,7 +61,7 @@ std::map<std::string, Autorun_Item> Autorun_items;
 
 SDL_Window *Autorun_window;
 SDL_Renderer *Autorun_renderer;
-
+SDL_AudioStream *Autorun_audioStream;
 dictionary *Autorun_ini;
 
 SDL_Texture *Autorun_backgroundTexture;
@@ -130,6 +130,7 @@ void Autorun_AddVideo(std::string name, void *data, size_t length)
     item.video.palette = SDL_CreatePalette(256);
 
     smk_enable_video(item.video.smacker, 1);
+    smk_enable_audio(item.video.smacker, 0, 1);
     smk_first(item.video.smacker);
 
     Autorun_WriteVideoFrame(&item);
@@ -220,6 +221,22 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     Autorun_LoadItems();
     Autorun_backgroundTexture = Assets_BITMAP_TEXTURE(autorun_bmp);
 
+    SDL_AudioSpec spec;
+
+    smk smacker = Autorun_items["Animate"].video.smacker;
+    unsigned char channels, bit_depth;
+    unsigned long freq;
+
+    smk_info_audio(smacker, NULL, &channels, &bit_depth, &freq);
+
+    // SDL_Log("%d")
+    spec.channels = channels;
+    spec.format = SDL_AUDIO_S16LE;
+    spec.freq = freq;
+
+    Autorun_audioStream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, NULL, NULL);
+    SDL_ResumeAudioStreamDevice(Autorun_audioStream);
+
     return SDL_APP_CONTINUE;
 }
 
@@ -245,6 +262,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
         SDL_DestroyTexture(item.texture);
     }
 
+    SDL_DestroyAudioStream(Autorun_audioStream);
     SDL_DestroyRenderer(Autorun_renderer);
     SDL_DestroyWindow(Autorun_window);
 }
@@ -303,6 +321,11 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             {
                 item.video.timer = 0.0;
                 Autorun_WriteVideoFrame(&item);
+
+                const void *audio_buf = smk_get_audio(item.video.smacker, 0);
+                unsigned long audio_buf_len = smk_get_audio_size(item.video.smacker, 0);
+
+                SDL_PutAudioStreamData(Autorun_audioStream, audio_buf, audio_buf_len);
                 smk_next(item.video.smacker);
             }
 
