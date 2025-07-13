@@ -1,8 +1,8 @@
 // Copyright (C) 2025 AllMeatball
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-#include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #define SDL_MAIN_USE_CALLBACKS
 #include <SDL3/SDL.h>
@@ -10,7 +10,6 @@
 
 #include <map>
 #include <string>
-#include <vector>
 
 #include "assets.h"
 #include "globals.h"
@@ -70,6 +69,7 @@ struct Autorun_Item_STRUCT
 
 std::map<std::string, Autorun_Item> Autorun_items;
 
+std::string Autorun_islePath = "";
 const char *Autorun_title = "";
 SDL_Window *Autorun_window;
 SDL_Renderer *Autorun_renderer;
@@ -194,12 +194,19 @@ void Autorun_LoadItems()
         Assets_BITMAP_TEXTURE(run1_bmp),
         [](Autorun_Item self)
         {
-            SDL_ShowSimpleMessageBox(
-                SDL_MESSAGEBOX_INFORMATION,
-                Autorun_title,
-                "TODO: make this open LEGO Island",
-                Autorun_window
-            );
+            if (Utils_RunCommand(Autorun_islePath + "/isle", "") == 0)
+            {
+                running = false;
+            }
+            else
+            {
+                SDL_ShowSimpleMessageBox(
+                    SDL_MESSAGEBOX_ERROR,
+                    Autorun_title,
+                    "Failed to launch LEGO Island\n(missing or invalid path perhaps)",
+                    Autorun_window
+                );
+            }
         }
     );
 
@@ -209,12 +216,15 @@ void Autorun_LoadItems()
         Assets_BITMAP_TEXTURE(config1_bmp),
         [](Autorun_Item self)
         {
-            SDL_ShowSimpleMessageBox(
-                SDL_MESSAGEBOX_INFORMATION,
-                Autorun_title,
-                "TODO: make this open the config app",
-                Autorun_window
-            );
+            if (Utils_RunCommand(Autorun_islePath + "/isle-config", "") != 0)
+            {
+                SDL_ShowSimpleMessageBox(
+                    SDL_MESSAGEBOX_ERROR,
+                    Autorun_title,
+                    "Failed to launch LEGO Island Config Application\n(missing or invalid path perhaps)",
+                    Autorun_window
+                );
+            }
         }
     );
 
@@ -256,6 +266,15 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
         SDL_Log("Failed to load autorun.ini");
         return SDL_APP_FAILURE;
     }
+
+    char *isle_path = getenv("ISLE_PATH");
+    if (isle_path == NULL)
+    {
+        SDL_Log("'ISLE_PATH' environment variable must be set before launching autorun");
+        return SDL_APP_FAILURE;
+    }
+
+    Autorun_islePath = std::string(isle_path);
 
     Autorun_title = iniparser_getstring(Autorun_ini, "Instance:ProgramName", "");
 
@@ -374,7 +393,8 @@ SDL_AppResult SDL_AppIterate(void *appstate)
                 item.video.loops--;
             }
 
-            if (item.video.loops < 1) {
+            if (item.video.loops < 1)
+            {
                 item.video.paused = true;
                 break;
             }
@@ -412,7 +432,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
     if (event->type == SDL_EVENT_QUIT)
         running = false;
 
-    if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN)
+    if (event->type == SDL_EVENT_MOUSE_BUTTON_UP)
     {
         if (event->button.button != SDL_BUTTON_LEFT)
             return SDL_APP_CONTINUE;
